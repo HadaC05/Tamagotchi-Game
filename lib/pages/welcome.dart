@@ -20,9 +20,9 @@ class WelcomePage extends StatelessWidget {
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [
-              const Color.fromARGB(255, 219, 242, 114),
-              const Color.fromARGB(255, 153, 227, 6)
-            ], // Change colors as needed
+              Color.fromARGB(255, 200, 239, 220),
+              Color.fromARGB(255, 3, 182, 247),
+            ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),

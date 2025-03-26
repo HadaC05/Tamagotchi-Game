@@ -11,14 +11,95 @@ class PetSelectionScreen extends StatelessWidget {
   ];
 
   void selectPet(BuildContext context, String petName, String petImage) {
-    var userBox = Hive.box('userBox');
-    userBox.put('selectedPet', {'name': petName, 'image': petImage});
-    userBox.put('hasChosenPet', true);
+    TextEditingController nameController = TextEditingController();
 
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => TamagoGame()),
-    );
+    showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: const Text(
+              "Name Your Pet",
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Colors.teal,
+              ),
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Image.asset(
+                  petImage,
+                  height: 150,
+                  width: 150,
+                  fit: BoxFit.cover,
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: nameController,
+                  decoration: InputDecoration(
+                    labelText: "Pet's Nickname",
+                    hintText: "Enter your pet's name",
+                    prefixIcon: const Icon(Icons.pets, color: Colors.teal),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderSide:
+                          const BorderSide(color: Colors.teal, width: 2),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+                child:
+                    const Text("Cancel", style: TextStyle(color: Colors.grey)),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  String petNickname = nameController.text.trim();
+                  if (petNickname.isNotEmpty) {
+                    var userBox = Hive.box('userBox');
+                    userBox.put('selectedPet', {
+                      'name': petName,
+                      'image': petImage,
+                      'nickname': petNickname,
+                    });
+                    userBox.put('hasChosenPet', true);
+
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(builder: (context) => TamagoGame()),
+                    );
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Please enter a valid pet name!'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.teal,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: const Text(
+                  "Confirm",
+                  style: TextStyle(color: Colors.white),
+                ),
+              ),
+            ],
+          );
+        });
   }
 
   @override
@@ -35,9 +116,9 @@ class PetSelectionScreen extends StatelessWidget {
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [
-              Color.fromARGB(255, 219, 242, 114),
-              Color.fromARGB(255, 153, 227, 6),
-            ], // Matching gradient background
+              Color.fromARGB(255, 200, 239, 220),
+              Color.fromARGB(255, 3, 182, 247),
+            ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),

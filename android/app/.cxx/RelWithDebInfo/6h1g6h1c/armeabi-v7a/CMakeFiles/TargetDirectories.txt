@@ -1,0 +1,2 @@
+C:/Users/Fritzie/tamago/android/app/.cxx/RelWithDebInfo/6h1g6h1c/armeabi-v7a/CMakeFiles/edit_cache.dir
+C:/Users/Fritzie/tamago/android/app/.cxx/RelWithDebInfo/6h1g6h1c/armeabi-v7a/CMakeFiles/rebuild_cache.dir

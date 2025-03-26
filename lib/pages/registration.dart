@@ -62,9 +62,9 @@ class _RegistrationPageState extends State<RegistrationPage> {
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [
-              Color.fromARGB(255, 219, 242, 114),
-              Color.fromARGB(255, 153, 227, 6),
-            ], // Gradient background
+              Color.fromARGB(255, 200, 239, 220),
+              Color.fromARGB(255, 3, 182, 247),
+            ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),

@@ -66,6 +66,15 @@ class _TamagoGameState extends State<TamagoGame> {
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
         ],
+        backgroundColor: Colors.teal,
+        selectedItemColor: Colors.white,
+        unselectedItemColor: Colors.white70,
+        selectedFontSize: 14,
+        unselectedFontSize: 12,
+        elevation: 8,
+        type: BottomNavigationBarType.fixed,
+        showUnselectedLabels: true,
+        iconSize: 28,
       ),
     );
   }

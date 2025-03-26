@@ -25,8 +25,8 @@ class _JournalListPageState extends State<JournalListPage> {
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [
-              Color.fromARGB(255, 219, 242, 114),
-              Color.fromARGB(255, 153, 227, 6),
+              Color.fromARGB(255, 200, 239, 220),
+              Color.fromARGB(255, 3, 182, 247),
             ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
@@ -81,13 +81,6 @@ class _JournalListPageState extends State<JournalListPage> {
                   },
                 ),
         ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          // Function to add a new journal entry
-        },
-        backgroundColor: Colors.deepPurple,
-        child: Icon(Icons.add, color: Colors.white),
       ),
     );
   }

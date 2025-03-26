@@ -80,20 +80,15 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // appBar: AppBar(
-      //   title: Text("Tamago"),
-      //   backgroundColor: Colors.indigo,
-      //   elevation: 5,
-      // ),
       body: Container(
         width: double.infinity,
         height: double.infinity,
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [
-              Color.fromARGB(255, 219, 242, 114),
-              Color.fromARGB(255, 153, 227, 6),
-            ], // Gradient background
+              Color.fromARGB(255, 200, 239, 220),
+              Color.fromARGB(255, 3, 182, 247),
+            ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),

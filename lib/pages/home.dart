@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
-// import 'package:tamago/components/appbar.dart';
 import 'dart:async';
-
+import 'audio_manager.dart';
 import 'package:tamago/pages/shop_dialog.dart';
 
 class TamaHome extends StatelessWidget {
@@ -25,12 +24,16 @@ class _HomePageState extends State<HomePage> {
   Timer? _timer;
   var usersBox = Hive.box('users');
   late Map userData;
+  String petNickname = "";
+  String backgroundImage = 'assets/images/default.png';
 
   @override
   void initState() {
     super.initState();
     loadUserData();
+    loadPetNickname();
     checkDailyReset();
+    AudioManager().playBackgroundMusic();
 
     _timer = Timer.periodic(Duration(minutes: 1), (timer) {
       if (mounted) {
@@ -45,8 +48,30 @@ class _HomePageState extends State<HomePage> {
 
   @override
   void dispose() {
-    _timer?.cancel();
     super.dispose();
+  }
+
+  void setBackground(String imagePath) {
+    setState(() {
+      backgroundImage = imagePath;
+      Hive.box('userBox').put('backgroundImage', imagePath);
+      // claimReward("set_mood", 5, 10, 0);
+    });
+  }
+
+  void loadPetNickname() {
+    var userBox = Hive.box('userBox');
+    dynamic selectedPet = userBox.get('selectedPet');
+
+    if (selectedPet != null &&
+        selectedPet is Map &&
+        selectedPet.containsKey('nickname')) {
+      setState(() {
+        petNickname = selectedPet['nickname'];
+      });
+    } else {
+      petNickname = "Your Pet";
+    }
   }
 
   void loadUserData() {
@@ -84,6 +109,8 @@ class _HomePageState extends State<HomePage> {
       userData['coins'] = (userData['coins'] ?? 0) + coins;
       userData['happiness'] = (userData['happiness'] + happiness).clamp(0, 100);
       userData['quests'][quest] = true;
+
+      checkPetStatus();
       checkEvolution();
       usersBox.put('user_data', userData);
       setState(() {});
@@ -99,6 +126,8 @@ class _HomePageState extends State<HomePage> {
       userData['evolution_stage'] = 2;
     } else if (level >= 20 && currentStage == 2) {
       userData['evolution_stage'] = 3;
+    } else {
+      return;
     }
 
     // Save to Hive
@@ -108,13 +137,67 @@ class _HomePageState extends State<HomePage> {
 
     // Ensure UI updates
     setState(() {});
+
+    // evolution pop up
+    showEvolutionPopup();
+  }
+
+  void showEvolutionPopup() {
+    showDialog(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: Text("Your Pet has evolved!"),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: EdgeInsets.all(8.0),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.indigo, width: 4),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black26,
+                        blurRadius: 6,
+                        spreadRadius: 2,
+                        offset: Offset(2, 4),
+                      ),
+                    ],
+                  ),
+                  child: ClipOval(
+                    child: Image.asset(
+                      getPetImage(),
+                      width: 150,
+                      height: 150,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                ),
+                SizedBox(
+                  height: 10,
+                ),
+                Text(
+                    "Congratulations! Your pet has reached a new evolution stage."),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                },
+                child: Text("OK"),
+              ),
+            ],
+          );
+        });
   }
 
   void addJournalEntry(String content) {
     String date = DateTime.now().toString().split(' ')[0];
     userData['journalEntries'].add({"date": date, "content": content});
     usersBox.put('user_data', userData);
-    claimReward("journal", 10, 5, 5);
+    // claimReward("journal", 10, 5, 5);
     setState(() {});
   }
 
@@ -124,26 +207,102 @@ class _HomePageState extends State<HomePage> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('New Journal Entry'),
-        content: TextField(
-          controller: journalController,
-          decoration: InputDecoration(
-            hintText: "Write your thoughts...",
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        title: Text(
+          'New Journal Entry',
+          style: TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.bold,
+            color: Colors.indigo,
+          ),
+        ),
+        content: Container(
+          padding: EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: Colors.indigo.shade50,
+            borderRadius: BorderRadius.circular(15),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 8,
+                offset: Offset(4, 4),
+              ),
+            ],
+          ),
+          child: TextField(
+            controller: journalController,
+            maxLines: 6,
+            decoration: InputDecoration(
+              hintText: "Write your thoughts...",
+              border: InputBorder.none,
+            ),
           ),
         ),
         actions: [
           TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+            },
+            child: Text(
+              'Cancel',
+              style: TextStyle(color: Colors.grey),
+            ),
+          ),
+          ElevatedButton(
             onPressed: () {
               if (journalController.text.isNotEmpty) {
                 addJournalEntry(journalController.text);
                 Navigator.pop(context);
               }
             },
-            child: Text('Save'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.indigo,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            child: Text(
+              'Save',
+              style: TextStyle(color: Colors.white),
+            ),
           ),
         ],
       ),
     );
+  }
+
+  void checkPetStatus() {
+    if (userData['hunger'] <= 0 && userData['happiness'] <= 0) {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => AlertDialog(
+          title: Text('Oh no! Your pet has passed away.'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Image.asset('assets/images/pet_dead.png', height: 150),
+              SizedBox(height: 20),
+              Text('Your pet’s hunger and happiness reached zero.'),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                setState(() {
+                  var userBox = Hive.box('userBox');
+                  userBox.put('evolution_stage', 'dead');
+                });
+              },
+              child: Text('Okay'),
+            ),
+          ],
+        ),
+      );
+    }
   }
 
   void decreaseStatOverTime() {
@@ -159,14 +318,52 @@ class _HomePageState extends State<HomePage> {
       userData['happiness'] =
           (userData['happiness'] - happinessLoss).clamp(0, 100);
       userData['lastUpdate'] = now.toString();
-
       usersBox.put('user_data', userData);
+
+      checkPetStatus();
     });
+  }
+
+  void showDaySelectionDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Choose Time of Day'),
+        content: SizedBox(
+          height: 200,
+          child: Column(
+            children: [
+              Expanded(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    DayOption(
+                        imagePath: 'assets/images/morning.png',
+                        label: 'Morning',
+                        onSelect: setBackground),
+                    DayOption(
+                        imagePath: 'assets/images/afternoon.png',
+                        label: 'Afternoon',
+                        onSelect: setBackground),
+                    DayOption(
+                        imagePath: 'assets/images/evening.png',
+                        label: 'Evening',
+                        onSelect: setBackground),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20.0),
+        ),
+      ),
+    );
   }
 
   String getPetImage() {
     var userBox = Hive.box('userBox');
-
     dynamic selectedPetData = userBox.get('selectedPet', defaultValue: null);
 
     if (selectedPetData == null || selectedPetData is! Map) {
@@ -178,167 +375,255 @@ class _HomePageState extends State<HomePage> {
 
     String petName = selectedPet['name'].toLowerCase();
     int evolutionStage = userBox.get('evolution_stage', defaultValue: 1);
+
+    // dead pet
+    if (userBox.get('evolution_stage') == 'dead') {
+      return 'assets/images/pet_dead.png';
+    }
+
+    // sleep condition
+    if (backgroundImage == 'assets/images/evening.png') {
+      return 'assets/images/${petName}_sleep.png';
+    }
+
+    // hunger condition
+    if (userData['hunger'] <= 50) {
+      return 'assets/images/${petName}_hungry.png';
+    }
+
     return 'assets/images/${petName}_stage$evolutionStage.png';
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // appBar: CustomAppBar(
-      //   title: 'YOUR VIRTUAL PET',
-      //   backgroundColor: Colors.indigo, // AppBar background color
-      //   elevation: 5, // Adding shadow to the AppBar for depth
-      // ),
       body: Container(
         width: double.infinity,
         height: double.infinity,
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              Color.fromARGB(255, 219, 242, 114),
-              Color.fromARGB(255, 153, 227, 6),
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+          image: DecorationImage(
+            image: AssetImage(backgroundImage),
+            fit: BoxFit.cover,
           ),
         ),
         child: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(20.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                // Welcome Text
-                Text(
-                  "Your Virtual Pet!",
-                  style: TextStyle(
-                    fontSize: 30,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.indigo,
-                  ),
+          child: Opacity(
+            opacity: 1,
+            child: SizedBox(
+              width: double.infinity,
+              child: Card(
+                elevation: 8,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
                 ),
-                SizedBox(height: 20),
-
-                // Set Mood Button
-                // ElevatedButton(
-                //   onPressed: () {},
-                //   style: ElevatedButton.styleFrom(
-                //     // primary: Colors.indigo,
-                //     padding: EdgeInsets.symmetric(horizontal: 30, vertical: 15),
-                //     shape: RoundedRectangleBorder(
-                //       borderRadius: BorderRadius.circular(30),
-                //     ),
-                //   ),
-                //   child: Text(
-                //     'Set Your Mood',
-                //     style: TextStyle(fontSize: 16, color: Colors.white),
-                //   ),
-                // ),
-                // SizedBox(height: 20),
-
-                // Pet Image with Gesture
-                GestureDetector(
-                  onDoubleTap: () {
-                    setState(() {
-                      userData['coins'] = (userData['coins'] ?? 0) + 5;
-                      userData['happiness'] =
-                          (userData['happiness'] + 3).clamp(0, 100);
-                      usersBox.put('user_data', userData);
-                    });
-                  },
-                  child: Container(
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.indigo, width: 4),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black26,
-                          blurRadius: 6,
-                          spreadRadius: 2,
-                          offset: Offset(2, 4),
+                color: Colors.white.withOpacity(0.3),
+                child: Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      // Welcome Text
+                      Container(
+                        width: MediaQuery.of(context).size.width * 0.9,
+                        padding: EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              Colors.indigo.shade50,
+                              Colors.blue.shade100
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(15),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.1),
+                              blurRadius: 8,
+                              offset: Offset(4, 4),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                    child: ClipOval(
-                      child: Image.asset(
-                        getPetImage(),
-                        height: 150,
-                        width: 150,
-                        fit: BoxFit.cover,
+                        child: Column(
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  "Hello, $petNickname!",
+                                  style: TextStyle(
+                                    fontSize: 25,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.indigo,
+                                  ),
+                                ),
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.monetization_on,
+                                      color: const Color.fromARGB(
+                                          255, 213, 199, 0),
+                                      size: 24,
+                                    ),
+                                    SizedBox(width: 5),
+                                    Text(
+                                      "Coins: ${userData['coins'] ?? 0}",
+                                      style: TextStyle(
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.bold,
+                                        color: const Color.fromARGB(
+                                            255, 213, 199, 0),
+                                        shadows: [
+                                          Shadow(
+                                            color: Colors.grey.withOpacity(0.5),
+                                            offset: Offset(2, 1),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                            SizedBox(height: 10),
+                            Text(
+                              "Level: ${userData['level']}",
+                              style: TextStyle(
+                                fontSize: 23,
+                                fontWeight: FontWeight.bold,
+                                color: const Color.fromARGB(255, 64, 64, 64),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ),
-                ),
-                SizedBox(height: 20),
 
-                // Level and Coins
-                Text(
-                  "Level: ${userData['level']}",
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                SizedBox(height: 10),
-                Text(
-                  "Coins: ${userData['coins'] ?? 0}",
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-                SizedBox(height: 20),
+                      SizedBox(height: 10),
 
-                // Hunger Progress Bar
-                Text(
-                  'Hunger Level',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                SizedBox(height: 10),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(10),
-                  child: SizedBox(
-                    width: 200,
-                    child: LinearProgressIndicator(
-                      value: userData['hunger'] / 100,
-                      color: Colors.red,
-                      backgroundColor: Colors.amber,
-                      minHeight: 20,
-                    ),
-                  ),
-                ),
-                SizedBox(height: 15),
+                      // Set Mood Button
+                      ElevatedButton(
+                        onPressed: () {
+                          showDaySelectionDialog();
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.indigo,
+                          padding: EdgeInsets.symmetric(
+                              horizontal: 30, vertical: 15),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(30),
+                          ),
+                        ),
+                        child: Text(
+                          'Set Your Day',
+                          style: TextStyle(fontSize: 16, color: Colors.white),
+                        ),
+                      ),
+                      SizedBox(height: 20),
 
-                // Happiness Progress Bar
-                Text(
-                  'Happiness Level',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                SizedBox(height: 10),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(10),
-                  child: SizedBox(
-                    width: 200,
-                    child: LinearProgressIndicator(
-                      value: userData['happiness'] / 100,
-                      color: Colors.blue,
-                      minHeight: 20,
-                    ),
-                  ),
-                ),
-                SizedBox(height: 20),
+                      // Pet Image with Gesture
+                      GestureDetector(
+                        onDoubleTap: () {
+                          setState(() {
+                            userData['coins'] = (userData['coins'] ?? 0) + 5;
+                            userData['happiness'] =
+                                (userData['happiness'] + 3).clamp(0, 100);
+                            usersBox.put('user_data', userData);
+                          });
+                        },
+                        child: Container(
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.indigo, width: 4),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black26,
+                                blurRadius: 6,
+                                spreadRadius: 2,
+                                offset: Offset(2, 4),
+                              ),
+                            ],
+                          ),
+                          child: ClipOval(
+                            child: Image.asset(
+                              getPetImage(),
+                              height: 150,
+                              width: 150,
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                        ),
+                      ),
 
-                // Write on Journal Button
-                ElevatedButton(
-                  onPressed: showJournalDialog,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.indigo,
-                    // shadowColor: Colors.indigo,
-                    padding: EdgeInsets.symmetric(horizontal: 30, vertical: 15),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(30),
-                    ),
-                  ),
-                  child: Text(
-                    'Write on Journal',
-                    style: TextStyle(fontSize: 16, color: Colors.white),
+                      // Level and Coins
+
+                      SizedBox(height: 10),
+
+                      // Hunger Progress Bar
+                      Text(
+                        'Busog Level',
+                        style: TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                      SizedBox(height: 10),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: SizedBox(
+                          width: 200,
+                          child: LinearProgressIndicator(
+                            value: userData['hunger'] / 100,
+                            color: Colors.red,
+                            backgroundColor:
+                                const Color.fromARGB(255, 255, 229, 150),
+                            minHeight: 20,
+                          ),
+                        ),
+                      ),
+                      SizedBox(height: 15),
+
+                      // Happiness Progress Bar
+                      Text(
+                        'Lingaw Level',
+                        style: TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                      SizedBox(height: 10),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: SizedBox(
+                          width: 200,
+                          child: LinearProgressIndicator(
+                            value: userData['happiness'] / 100,
+                            color: Colors.blue,
+                            backgroundColor:
+                                const Color.fromARGB(255, 255, 229, 150),
+                            minHeight: 20,
+                          ),
+                        ),
+                      ),
+                      SizedBox(height: 20),
+
+                      // Write on Journal Button
+                      ElevatedButton(
+                        onPressed: showJournalDialog,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.indigo,
+                          // shadowColor: Colors.indigo,
+                          padding: EdgeInsets.symmetric(
+                              horizontal: 30, vertical: 15),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(30),
+                          ),
+                        ),
+                        child: Text(
+                          'Write on Journal',
+                          style: TextStyle(fontSize: 16, color: Colors.white),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ],
+              ),
             ),
           ),
         ),
@@ -387,9 +672,9 @@ class _HomePageState extends State<HomePage> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            QuestItem("Log In", "login", 10, 10, 10),
-            QuestItem("Set Mood", "set_mood", 5, 10, 0),
-            QuestItem("Write Journal", "journal", 10, 5, 5),
+            QuestItem("Log In", "login", 1, 10, 10),
+            QuestItem("Set Your Day", "set_mood", 1, 10, 0),
+            QuestItem("Write Journal", "journal", 2, 5, 5),
           ],
         ),
       ),
@@ -398,17 +683,121 @@ class _HomePageState extends State<HomePage> {
 
   Widget QuestItem(
       String title, String questKey, int exp, int coins, int happiness) {
-    return ListTile(
-      title: Text(title),
-      trailing: userData['quests'].containsKey(questKey)
-          ? Icon(
-              Icons.check,
-              color: Colors.green,
-            )
-          : ElevatedButton(
-              onPressed: () => claimReward(questKey, exp, coins, happiness),
-              child: Text("Claim"),
+    return StatefulBuilder(
+      builder: (context, setState) {
+        bool isQuestCompleted = userData['quests'].containsKey(questKey);
+        bool isQuestClaimable = false;
+
+        if (questKey == "login") {
+          DateTime lastLogin = DateTime.parse(userData['lastLogin']);
+          isQuestClaimable = DateTime.now().difference(lastLogin).inDays == 0;
+        } else if (questKey == "set_mood") {
+          isQuestClaimable = backgroundImage != 'assets/images/default.png';
+        } else if (questKey == "journal") {
+          isQuestClaimable = userData['journalEntries'].isNotEmpty &&
+              userData['journalEntries'].any((entry) =>
+                  entry['date'] == DateTime.now().toString().split(' ')[0]);
+        }
+
+        return Card(
+          elevation: 4,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: ListTile(
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            title: Text(
+              title,
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.teal.shade800,
+              ),
             ),
+            trailing: isQuestCompleted
+                ? const Icon(
+                    Icons.check_circle,
+                    color: Colors.green,
+                    size: 28,
+                  )
+                : ElevatedButton(
+                    onPressed: isQuestClaimable
+                        ? () {
+                            claimReward(questKey, exp, coins, happiness);
+                            setState(() {});
+                          }
+                        : null,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor:
+                          isQuestClaimable ? Colors.teal : Colors.grey,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                    ),
+                    child: const Text(
+                      "Claim",
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class DayOption extends StatelessWidget {
+  final String imagePath;
+  final String label;
+  final Function(String) onSelect;
+
+  const DayOption(
+      {required this.imagePath, required this.label, required this.onSelect});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        onSelect(imagePath);
+        Navigator.pop(context);
+      },
+      child: Container(
+        width: 90,
+        height: 150,
+        padding: EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(15),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.white.withOpacity(0.1),
+              blurRadius: 8,
+              spreadRadius: 4,
+              offset: Offset(2, 1),
+            )
+          ],
+        ),
+        child: Column(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: Image.asset(
+                imagePath,
+                width: 70,
+                height: 70,
+                fit: BoxFit.cover,
+              ),
+            ),
+            SizedBox(
+              height: 8,
+            ),
+            Text(label),
+          ],
+        ),
+      ),
     );
   }
 }
